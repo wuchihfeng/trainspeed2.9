@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>速度計算v2.8.6 加三鶯 (深色線條與全動態按鈕版)</title>
+    <link rel="stylesheet" href="./style.css">
+</head>  
+<body>
+<style>
+/* --- 基礎設定 --- */
+* { box-sizing: border-box; }
+
+body { 
+  margin: 0; 
+  background: #121212; 
+  color: #e0e0e0; 
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+  display: flex; 
+  justify-content: center; 
+  padding: 12px; 
+  width: 100%;   
+}
+
+/* 主容器 */
+.calculator { 
+  background: #1e1e1e; 
+  padding: 20px; 
+  border-radius: 16px; 
+  width: 100%;       
+  max-width: 440px; 
+  border: 1px solid #333; /* 寫死深色線條 */
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45); 
+  overflow: hidden;  
+}
+
+h1 { font-size: 1.25rem; color: #ff9800; text-align: center; margin: 0 0 20px; }
+
+/* 提示文字 */
+.label-hint { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+
+/* 快速選取按鈕 */
+.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+.quick-tags button { 
+  background: #2a2a2a; 
+  color: #ff9800; 
+  border: 1.5px solid #ff9800; 
+  padding: 8px 4px; 
+  border-radius: 7px; 
+  font-size: 0.74rem; 
+  flex: 1 1 calc(33.333% - 8px); 
+  cursor: pointer; 
+  transition: all 0.15s ease; 
+  font-weight: 600;
+  white-space: nowrap;     
+  overflow: hidden;        
+  text-overflow: ellipsis; 
+}
+
+/* 萬用按鈕點擊特效 (包含所有歷史紀錄區域按鈕) */
+.calculator button:active,
+.record-card button:active { 
+  filter: brightness(0.75) !important; 
+  transform: scale(0.95) !important; 
+  transition: filter 0.05s, transform 0.05s !important;
+}
+
+/* 輸入框控制 */
+.horizontal-inputs { display: flex; gap: 10px; }
+.horizontal-inputs input { flex: 1; min-width: 0; }
+
+.input-group { margin-bottom: 15px; }
+label { display: block; font-size: 0.82rem; margin-bottom: 6px; color: #aaa; }
+
+input { 
+  width: 100%; 
+  padding: 11px; 
+  background: #252525; 
+  border: 1px solid #444; 
+  border-radius: 8px; 
+  color: #fff; 
+  outline: none; 
+  font-size: 0.95rem;
+}
+
+input:focus { border-color: #ff9800; }
+
+/* 車廂組合顯示盒 */
+.parts-box { 
+  background: #252525; 
+  border: 1px solid #333; 
+  border-radius: 10px; 
+  padding: 12px; 
+  min-height: 50px; 
+  margin-bottom: 15px;
+}
+
+.placeholder-text { color: #555; text-align: center; font-size: 0.8rem; padding-top: 5px; }
+
+.part-row { 
+  display: grid; 
+  grid-template-columns: 1fr 80px; 
+  gap: 10px; 
+  align-items: center; 
+  margin-bottom: 8px; 
+}
+
+.part-name { color: #ddd; font-size: 0.85rem; font-weight: 600; }
+.part-row input { text-align: center; padding: 5px; height: 30px; }
+
+.calc-btn { 
+  flex: 2; 
+  background: #ff9800; 
+  color: #121212; 
+  border: none; 
+  padding: 12px; 
+  border-radius: 8px; 
+  font-weight: bold; 
+  cursor: pointer; 
+}
+
+.calc-btn:hover { background: #e68a00; }
+
+/* 結果區域 */
+.result-box { 
+  background: #121212; 
+  padding: 16px; 
+  border-radius: 12px; 
+  text-align: center; 
+  margin: 12px 0; 
+  border: 1px solid #222; 
+  transition: border-color 0.3s;
+}
+
+.speed { font-size: 2.2rem; color: #ff9800; font-weight: 800; }
+.unit { font-size: 0.9rem; color: #666; margin-left: 4px; }
+.info { font-size: 0.8rem; color: #aaa; margin-top: 6px; }
+
+hr { 
+  border: 0; 
+  border-top: 1px solid #333; 
+  margin: 20px 0; 
+}
+
+/* 輔助對照表 */
+.reference-guide { 
+  background: #252525; 
+  padding: 12px; 
+  border-radius: 10px; 
+  border: 1px solid #333; 
+  margin-top: 20px; 
+}
+
+.guide-title { 
+  font-size: 0.8rem; 
+  color: #ff9800; 
+  margin-bottom: 8px; 
+  font-weight: bold; 
+}
+
+.guide-content { 
+  max-height: 270px; 
+  overflow-y: auto; 
+  font-size: 0.75rem; 
+}
+
+/* 表格樣式 */
+table { width: 100%; border-collapse: collapse; }
+td { 
+  padding: 8px 5px; 
+  border-bottom: 1px solid #333; 
+  color: #888; 
+}
+td:first-child { color: #ff9800; font-weight: bold; width: 80px; }
+.guide-content::-webkit-scrollbar { width: 4px; }
+.guide-content::-webkit-scrollbar-thumb { background: #ff9800; border-radius: 10px; }
+
+.btn-row { 
+  display: flex; 
+  gap: 8px; 
+  margin: 10px 0; 
+}
+
+.reset-btn { 
+  flex: 0 0 90px; 
+  background: #333; 
+  color: #999; 
+  border: 1px solid #444; 
+  border-radius: 8px; 
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* 秒數助手外框 */
+.helper-box {
+  background: #2a2a2a;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px dashed #555;
+}
+
+.helper-label {
+  color: #ff9800;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.helper-inputs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.helper-inputs input {
+  flex: 1;
+  min-width: 0; 
+  text-align: center;
+  padding: 10px 5px;
+  height: 38px;
+}
+
+.operator {
+  color: #888;
+  font-weight: bold;
+  padding: 0 5px;
+}
+
+.helper-btns {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-fill {
+  flex: 2;
+  padding: 12px;
+  background: transparent;
+  color: #ff9800;
+  border: 1.5px solid #ff9800;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-clear {
+  flex: 1;
+  padding: 12px;
+  background: #333;
+  color: #888;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.reset-all-container {
+  margin-bottom: 20px;
+}
+
+.btn-danger {
+  width: 100%;
+  padding: 12px;
+  background: #442222;
+  color: #ff6666;
+  border: 1px solid #663333;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.accel-theme {
+  background: #e65c00 !important;
+  color: #fff !important;
+}
+
+.accel-box {
+  border-color: #444 !important;
+}
+
+.light-speed {
+  color: #e0e0e0 !important;
+}
+
+.category-title {
+  color: #fff !important;      
+  font-size: 0.95rem;          
+  font-weight: 800;            
+  padding-top: 15px !important;
+  padding-bottom: 5px !important;
+  border-bottom: 2px solid #ff9800; 
+  width: 100%;                 
+}
+
+/* ==========================================
+   --- 歷史觀測紀錄日誌樣式 (已移除變數) ---
+   ========================================== */
+.record-card {
+  margin-top: 20px;
+}
+
+.record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #333; /* 寫死深色線條 */
+  padding-bottom: 10px;
+}
+
+.record-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.btn-clear-all {
+  background-color: #e74c3c !important;
+  color: white !important;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: auto !important;
+  margin: 0;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.record-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 6px;
+}
+
+.record-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+  white-space: nowrap; 
+}
+
+.record-table th {
+  padding: 12px 10px;
+  border-bottom: 2px solid #333; /* 寫死深色線條 */
+  color: #888;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.record-table tr {
+  border-bottom: 1px solid #333; /* 寫死深色線條 */
+  transition: background-color 0.15s ease;
+}
+
+.record-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.record-table td {
+  padding: 12px 10px;
+  vertical-align: middle;
+}
+
+.record-data-cell {
+  font-family: 'Noto Sans Mono', ui-monospace, 'SFMono-Regular', 'Roboto Mono', Consolas, monospace !important;
+  font-weight: 700;
+  font-size: 16px;
+  color: #e0e0e0;
+}
+
+.record-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-speed {
+  background-color: rgba(52, 152, 219, 0.15);
+  color: #3498db;
+}
+
+.badge-accel {
+  background-color: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+}
+
+.btn-delete {
+  background: #442222;
+  color: #ff6666;
+  border: 1px solid #663333;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: transform 0.05s ease, filter 0.05s ease;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.btn-page {
+  background: #2a2a2a;
+  color: #ff9800;
+  border: 1px solid #ff9800;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-page:disabled {
+  border-color: #444;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+</style>
+
+<div class="calculator">
+  <h1>通過速度/起動加速度計算</h1>
+
+  <!-- 1. 快速選單 -->
+  <label>快速選單</label>
+  <div class="quick-tags">
+    <button type="button" onclick="setTrain('700T')">高鐵 700T</button>
+    <button type="button" onclick="setTrain('PPE500')">PP自強E500</button>
+    <button type="button" onclick="setTrain('3000')">新自強</button>
+    <button type="button" onclick="setTrain('900')">EMU900</button>
+    <button type="button" onclick="setTrain('800')">EMU800</button>
+    <button type="button" onclick="setTrain('700')">EMU700</button>
+    <button type="button" onclick="setTrain('500')">EMU500 8節</button>
+    <button type="button" onclick="setTrain('301')">北捷高運量</button>
+    <button type="button" onclick="setTrain('256')">文湖線</button>
+  </div>
+
+  <!-- 2. 核心數據輸入區域 -->
+  <div class="input-section">
+    <div class="input-group">
+      <label>數據輸入 (代碼 / 秒數 / 末速)</label>
+      <div class="horizontal-inputs">
+        <input type="text" id="trainCode" placeholder="代碼" oninput="handleCodeInput()">
+        <input type="number" id="seconds" placeholder="時間 (s)" step="0.001" inputmode="decimal">
+        <input type="number" id="vFinal" placeholder="末速 (km/h)" value="0" step="0.1">
+      </div>
+      <div class="label-hint">
+        加速度：啟動模式末速預設為0，速差模式請填離站速
+      </div>
+    </div>
+
+    <!-- 秒數小算盤 -->
+    <div class="input-group helper-box">
+      <label class="helper-label">秒數小算盤</label>
+      <div class="helper-inputs">
+        <input type="number" id="m1" placeholder="分" inputmode="numeric" pattern="[0-9]*" autocomplete="off"> : 
+        <input type="number" id="s1" placeholder="秒" inputmode="decimal" step="0.001" autocomplete="off">
+        <span class="operator">－</span>
+        <input type="number" id="m2" placeholder="分" inputmode="numeric" pattern="[0-9]*" autocomplete="off"> : 
+        <input type="number" id="s2" placeholder="秒" inputmode="decimal" step="0.001" autocomplete="off">
+      </div>
+      <div class="helper-btns">
+        <button type="button" onclick="quickTimeCalc()" class="btn-fill">計算並回填 時間(s)</button>
+        <button type="button" onclick="resetTimeCalc()" class="btn-clear">清空算盤</button>
+      </div>
+    </div>
+
+    <!-- 3. 動態車廂配置 -->
+    <div class="input-group">
+      <label>車廂配置與基準長度</label>
+      <div class="parts-box" id="partsBox">
+        <div class="placeholder-text">點選上方按鈕或輸入代碼帶入配置</div>
+      </div>
+    </div>
+    <hr>
+
+    <!-- 4. 速度計算區域 -->
+    <div class="btn-row">
+      <button type="button" onclick="calculateSpeed()" class="calc-btn">計算通過時速</button>
+      <button type="button" onclick="resetSpeed()" class="reset-btn">清空速度</button>
+    </div>
+
+    <div class="result-box" id="resultSpeed">
+      <div class="speed" id="mainSpeed">-- <span class="unit">km/h</span></div>
+      <div class="info" id="speedInfo">平均速度計算結果</div>
+    </div>
+
+    <!-- 5. 加速度計算區域 -->
+    <div class="btn-row">
+      <button type="button" onclick="calculateAccel()" class="calc-btn accel-theme">計算起動加速度</button>
+      <button type="button" onclick="resetAccel()" class="reset-btn">清空加速度</button>
+    </div>
+
+    <div class="result-box accel-box" id="resultAccel">
+      <div class="speed light-speed" id="mainAccel">-- <span class="unit">m/s²</span></div>
+      <div class="info" id="accelInfo">平均加速度計算結果</div>
+    </div>
+    
+    <!-- 全域清空按鈕 -->
+    <div class="reset-all-container">
+      <button type="button" onclick="resetAll()" class="btn-danger">清空所有數據</button>
+    </div>
+
+    <!-- 歷史日誌表格 -->
+    <div class="card record-card">
+      <div class="record-header">
+        <h3>計算紀錄：</h3>
+        <button type="button" class="btn-clear-all" onclick="RecordManager.clearAll()">清空所有紀錄</button>
+      </div>
+      
+      <div class="record-table-wrapper">
+        <table class="record-table">
+          <thead>
+            <tr>
+              <th>時間</th>
+              <th>車型代碼</th>
+              <th>計算類型</th>
+              <th>觀測數據結果</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="recordTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 參考導引 -->
+    <div class="reference-guide">
+      <div class="guide-title">完整代碼表</div>
+      <div class="guide-content">
+        <table>
+          <!-- 高鐵系列 -->
+          <tr><td colspan="2" class="category-title">高鐵</td></tr>
+          <tr><td>700T</td><td>高鐵 700T</td></tr>
+
+          <!-- 台鐵系列 -->
+          <tr><td colspan="2" class="category-title">台鐵</td></tr>
+          <tr><td>PP</td><td>PP自強(機車留空)</td></tr>
+          <tr><td>PPE500</td><td>PP自強(E500)</td></tr>
+          <tr><td>PPE1000</td><td>PP自強(E1000)</td></tr>
+          <tr><td>3000</td><td>EMU3000 新自強</td></tr>
+          <tr><td>T1000</td><td>太魯閣</td></tr>
+          <tr><td>T2000</td><td>普悠瑪</td></tr>
+          <tr><td>CK</td><td>莒光8節</td></tr>
+          <tr><td>500</td><td>EMU500/600 8節</td></tr>
+          <tr><td>600</td><td>EMU500/600 4節</td></tr>
+          <tr><td>700</td><td>EMU700</td></tr>
+          <tr><td>800</td><td>EMU800</td></tr>
+          <tr><td>900</td><td>EMU900</td></tr>
+          <tr><td>3100</td><td>DR3100</td></tr>
+          <tr><td>1000</td><td>DR1000</td></tr>
+
+          <!-- 捷運系列 -->
+          <tr><td colspan="2" class="category-title">北部捷運</td></tr>
+          <tr><td>301/321/341/371/381</td><td>台北捷運高運量電聯車</td></tr>
+          <tr><td>256/370</td><td>文湖線電聯車</td></tr>
+          <tr><td>610/101</td><td>環狀線電聯車</td></tr>
+          <tr><td>LRT</td><td>新北輕軌</td></tr>
+          <tr><td>SY</td><td>三鶯線</td></tr>
+          <tr><td>MA1</td><td>機捷普通車</td></tr>
+          <tr><td>MA2</td><td>機捷直達車</td></tr>
+
+          <tr><td colspan="2" class="category-title">中部捷運</td></tr>
+          <tr><td>MT</td><td>台中捷運綠線電聯車</td></tr>
+
+          <tr><td colspan="2" class="category-title">南部捷運</td></tr>
+          <tr><td>CAF</td><td>高捷輕軌 CAF Urbos 3</td></tr>
+          <tr><td>CIS</td><td>高捷輕軌 Citadis 305</td></tr>
+          <tr><td>MK</td><td>高雄捷運高運量電聯車</td></tr>
+        </table>
+      </div>
+    </div>
+    
+    <div class="reference-guide">
+      <div class="guide-title">公式解釋</div>
+      <div class="guide-content">
+        <table>
+          <tr><td>平均速度</td><td>列車長÷通過持續時間</td></tr>
+          <tr><td>加速度 Ⅰ (末速未知)</td><td>列車長×2/加速持續時間²</td></tr>
+          <tr><td>加速度 Ⅱ (末速已知)</td><td>[末速-初速(0)]/加速持續時間</td></tr>
+          <tr><td>加速度計算說明：</td><td>加速度數值為利用列車長度推導出。與列車速相同，尋找基準點，測量加速度持續時間，即可得。</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// --- 1. 車輛資料庫 ---
+const TRAIN_DB = {
+    "700T": { name: "高鐵 700T", head: 26.75, mid: 24.5, defH: 2, defM: 10 },
+    "3000": { name: "EMU3000", head: 21.35, mid: 20.3, defH: 2, defM: 10 },
+    "900":  { name: "EMU900", head: 21.58, mid: 20.3, defH: 2, defM: 8 },
+    "800":  { name: "EMU800", head: 21.25, mid: 20.3, defH: 2, defM: 6 },
+    "700":  { name: "EMU700", head: 20.741, mid: 20.3, defH: 2, defM: 6 },
+    "500":  { name: "EMU500/600", head: 20.33, mid: 20.33, defH: 2, defM: 6 },
+    "600":  { name: "EMU500/600", head: 20.33, mid: 20.33, defH: 2, defM: 2 },
+    "T1000":{ name: "太魯閣號", head: 21.995, mid: 20.5, defH: 2, defM: 6 },
+    "T2000":{ name: "普悠瑪號", head: 22.095, mid: 20.7, defH: 2, defM: 6 },
+    "256":  { name: "APM256", head: 13.78, mid: 13.78, defH: 2, defM: 2 },
+    "370":  { name: "APM256", head: 13.78, mid: 13.78, defH: 2, defM: 2 },
+    "101":  { name: "環狀線", head: 17.455, mid: 16.76, defH: 2, defM: 2 },
+    "610":  { name: "環狀線", head: 17.455, mid: 16.76, defH: 2, defM: 2 },
+    "3100": { name: "DR3100", head: 20.274, mid: 20.274, defH: 2, defM: 6 },
+    "1000": { name: "DR1000", head: 19.774, mid: 19.774, defH: 2, defM: 2 },
+    "CK":   { name: "莒光 E500", head: 20.77, mid: 20.25, defH: 1, defM: 8 },
+    "321":  { name: "北捷 321", head: 23.5, mid: 23.5, defH: 2, defM: 4 },
+    "341":  { name: "北捷 341", head: 23.5, mid: 23.5, defH: 2, fontHead: 2, defM: 4 },
+    "301":  { name: "北捷 301", head: 23.5, mid: 23.5, defH: 2, defM: 4 },
+    "371":  { name: "北捷 371", head: 23.5, mid: 23.5, defH: 2, defM: 4 },
+    "381":  { name: "北捷 381", head: 23.5, mid: 23.5, defH: 2, defM: 4 },
+    "MA1":  { name: "桃捷 1000型 (區間)", head: 20.78, mid: 20.25, defH: 2, defM: 2 },
+    "MA2":  { name: "桃捷 2000型 (直達)", head: 20.78, mid: 20.25, defH: 2, defM: 3 },
+    "MT":   { name: "中捷 100型", head: 22.17, mid: 22.17, defH: 2, defM: 0 },
+    "MK":   { name: "高捷 高運量", head: 21.56, mid: 19.5, defH: 2, defM: 1 },
+    "CAF":  { name: "高雄輕軌 CAF", full: 34.166, isFull: true },
+    "CIS":  { name: "高雄輕軌 Citadis", full: 33.400, isFull: true },
+    "LRT":  { name: "新北輕軌", full: 34.450, isFull: true },
+    "SY":   { name: "三鶯線", full: 35.000, isFull: true},
+    "PP":   { name: "PP 自強號", e5: 20.770, e1: 17.211, c: 20.3, defE5: 2, defE1: 0, defC: 12 }
+};
+
+// --- 2. 輸入與 UI 邏輯 ---
+function handleCodeInput() {
+    let code = document.getElementById('trainCode').value.toUpperCase();
+    if (code.startsWith('PP') || TRAIN_DB[code]) updatePartsUI(code);
+}
+
+function setTrain(code) {
+    document.getElementById('trainCode').value = code;
+    updatePartsUI(code);
+}
+
+function updatePartsUI(code) {
+    let targetCode = code.startsWith('PP') ? 'PP' : code.toUpperCase();
+    const data = TRAIN_DB[targetCode];
+    const box = document.getElementById('partsBox');
+    if (!data) return;
+
+    if (data.isFull) {
+        box.innerHTML = `
+            <div class="part-row">
+                <div class="part-name">${data.name}</div>
+                <div style="color:#ff9800; font-weight:bold; font-size:0.85rem; text-align:center;">${data.full}m</div>
+            </div>`;
+    } else if (targetCode === 'PP') {
+        box.innerHTML = `
+            <div class="part-row"><div class="part-name">E500 <span style="font-size:0.7rem; font-weight:bold;">(20.77m)</span></div><input type="number" id="e5Cnt" value="${code === 'PPE500' ? 2 : 0}"></div>
+            <div class="part-row"><div class="part-name">E1000 <span style="font-size:0.7rem; font-weight:bold;">(17.21m)</span></div><input type="number" id="e1Cnt" value="${code === 'PPE1000' ? 2 : 0}"></div>
+            <div class="part-row"><div class="part-name">客車 <span style="font-size:0.7rem; font-weight:bold;">(20.3m)</span></div><input type="number" id="cCnt" value="12"></div>`;
+    } else {
+        box.innerHTML = `
+            <div class="part-row"><div class="part-name">先頭 <span style="font-size:0.7rem; font-weight:bold;">(${data.head}m)</span></div><input type="number" id="hCnt" value="${data.defH}"></div>
+            <div class="part-row"><div class="part-name">中間 <span style="font-size:0.7rem; font-weight:bold;">(${data.mid}m)</span></div><input type="number" id="mCnt" value="${data.defM}"></div>`;
+    }
+
+    if (targetCode === 'PP') {
+        const e5Input = document.getElementById('e5Cnt');
+        const e1Input = document.getElementById('e1Cnt');
+        if (e5Input && e1Input) {
+            e5Input.addEventListener('input', () => { if(parseInt(e5Input.value) > 0) e1Input.value = 0; });
+            e1Input.addEventListener('input', () => { if(parseInt(e1Input.value) > 0) e5Input.value = 0; });
+        }
+    }
+}
+
+// --- 3. 核心計算邏輯 ---
+function getCurrentTotalLength() {
+    const rawCode = document.getElementById('trainCode').value.toUpperCase();
+    const targetCode = rawCode.startsWith('PP') ? 'PP' : rawCode;
+    const data = TRAIN_DB[targetCode];
+    if (!data) return 0;
+    if (data.isFull) return data.full;
+    if (targetCode === 'PP') {
+        return (parseInt(document.getElementById('e5Cnt')?.value || 0) * 20.77) +
+               (parseInt(document.getElementById('e1Cnt')?.value || 0) * 17.211) +
+               (parseInt(document.getElementById('cCnt')?.value || 0) * 20.3);
+    }
+    return (parseInt(document.getElementById('hCnt')?.value || 0) * data.head) +
+           (parseInt(document.getElementById('mCnt')?.value || 0) * data.mid);
+}
+
+function calculateSpeed() {
+    const totalL = getCurrentTotalLength();
+    const sec = parseFloat(document.getElementById('seconds').value);
+    if (!totalL || !sec || sec <= 0) return;
+
+    const speed = (totalL / sec) * 3.6;
+    const resultDiv = document.getElementById('mainSpeed');
+    const infoDiv = document.getElementById('speedInfo');
+
+    if (speed >= 1000) {
+        resultDiv.innerHTML = `<span style="color:#ff5252;">${speed.toExponential(2)}</span> <span class="unit">km/h</span>`;
+        infoDiv.innerHTML = `<span style="color:#ff5252; font-weight:bold;">⚠️ 數據異常</span>`;
+    } else if (speed > 350) {
+        resultDiv.innerHTML = `<span style="color:#ff5252;">${speed.toFixed(2)}</span> <span class="unit">km/h</span>`;
+        infoDiv.innerHTML = `<span style="color:#ff5252; font-weight:bold;">⚠️ 數據異常</span>`;
+    } else {
+        resultDiv.innerHTML = `${speed.toFixed(2)} <span class="unit">km/h</span>`;
+        infoDiv.innerText = `總長：${totalL.toFixed(2)} m | 時間：${sec} s`;
+    }
+    
+    RecordManager.saveCurrent('speed'); 
+}
+
+function calculateAccel() {
+    const totalL = getCurrentTotalLength();
+    const sec = parseFloat(document.getElementById('seconds').value);
+    const vF_kmh = parseFloat(document.getElementById('vFinal').value) || 0;
+    if (!totalL || !sec || sec <= 0) return;
+
+    let a = (vF_kmh === 0) ? (2 * totalL) / Math.pow(sec, 2) : (vF_kmh / 3.6) / sec;
+    const accel_kmhs = a * 3.6;
+    
+    const resultDiv = document.getElementById('mainAccel');
+    const infoDiv = document.getElementById('accelInfo');
+
+    if (accel_kmhs > 4.5) {
+        resultDiv.innerHTML = `<span style="color:#ff5252;">${a.toFixed(3)}</span> <span class="unit">m/s²</span>`;
+        infoDiv.innerHTML = `<span style="color:#ff5252; font-weight:bold;">⚠️ 異常 (${accel_kmhs.toFixed(2)} km/h/s)</span>`;
+    } else {
+        resultDiv.innerHTML = `${a.toFixed(3)} <span class="unit">m/s²</span>`;
+        const modeText = vF_kmh === 0 ? `啟動模式` : `速差模式`;
+        const detailText = vF_kmh === 0 ? `推算末速: ${(a*sec*3.6).toFixed(1)} km/h` : `末速: ${vF_kmh} km/h`;
+        infoDiv.innerHTML = `${modeText} | <strong>${accel_kmhs.toFixed(2)} km/h/s</strong><br><small>${detailText}</small>`;
+    }
+
+    RecordManager.saveCurrent('accel'); 
+}
+
+// --- 4. 秒數小算盤邏輯 ---
+function quickTimeCalc() {
+    const m1 = parseFloat(document.getElementById('m1').value) || 0;
+    const s1 = parseFloat(document.getElementById('s1').value) || 0;
+    const m2 = parseFloat(document.getElementById('m2').value) || 0;
+    const s2 = parseFloat(document.getElementById('s2').value) || 0;
+
+    const diff = Math.abs(((m1 * 60) + s1) - ((m2 * 60) + s2));
+
+    if (diff >= 0) {
+        const secInput = document.getElementById('seconds');
+        secInput.value = diff.toFixed(3);
+        
+        secInput.style.borderColor = '#ff9800';
+        secInput.style.boxShadow = '0 0 10px rgba(255,152,0,0.5)';
+        setTimeout(() => {
+            secInput.style.borderColor = '#444';
+            secInput.style.boxShadow = 'none';
+        }, 500);
+    }
+}
+
+// --- 5. 重置系列功能 ---
+function resetSpeed() {
+    document.getElementById('mainSpeed').innerHTML = `-- <span class="unit">km/h</span>`;
+    document.getElementById('speedInfo').innerText = "平均速度計算結果";
+}
+
+function resetAccel() {
+    document.getElementById('mainAccel').innerHTML = `-- <span class="unit">m/s²</span>`;
+    document.getElementById('accelInfo').innerText = "平均加速度計算結果";
+    document.getElementById('vFinal').value = '0';
+}
+
+function resetTimeCalc() {
+    document.getElementById('m1').value = '';
+    document.getElementById('s1').value = '';
+    document.getElementById('m2').value = '';
+    document.getElementById('s2').value = '';
+}
+
+function resetAll() {
+    document.getElementById('seconds').value = '';
+    document.getElementById('trainCode').value = '';
+    document.getElementById('vFinal').value = '0';
+    document.getElementById('partsBox').innerHTML = '<div class="placeholder-text">點選上方按鈕或輸入代碼帶入配置</div>';
+    
+    resetTimeCalc();
+    resetSpeed();
+    resetAccel();
+    RecordManager.clearAll(); 
+}
+
+// --- 6. 手機鍵盤優化 ---
+document.addEventListener("DOMContentLoaded", () => {
+    const elS2 = document.getElementById("s2");
+    if (elS2) {
+        elS2.addEventListener("input", () => {
+            quickTimeCalc();
+        });
+
+        elS2.addEventListener("keyup", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                quickTimeCalc(); 
+                if (document.activeElement) {
+                    document.activeElement.blur();
+                }
+            }
+        });
+    }
+});
+
+// ==========================================================================
+// --- 7. 歷史觀測紀錄管理模組 (RecordManager) ---
+// ==========================================================================
+const RecordManager = {
+    STORAGE_KEY: 'railway_calculator_records',
+    currentPage: 1,     
+    rowsPerPage: 5,     
+
+    init() {
+        this.render();
+    },
+
+    saveCurrent(forcedType) {
+        const elCode = document.getElementById('trainCode');
+        const trainCode = (elCode && elCode.value.trim()) ? elCode.value.trim().toUpperCase() : "未指定車型";
+        
+        const elSpeed = document.getElementById('mainSpeed');
+        const elAccel = document.getElementById('mainAccel');
+        
+        const speedText = elSpeed ? elSpeed.innerText.trim() : "--";
+        const accelText = elAccel ? elAccel.innerText.trim() : "--";
+        
+        let type = "";
+        let resultValue = "";
+
+        if (forcedType === 'accel') {
+            type = "起動加速度";
+            resultValue = accelText;
+        } else if (forcedType === 'speed') {
+            type = "通過速度";
+            resultValue = speedText;
+        } else {
+            return;
+        }
+
+        if (resultValue.includes("--")) return;
+
+        const newRecord = {
+            id: Date.now(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            code: trainCode,
+            type: type,
+            result: resultValue
+        };
+
+        const records = this.getRecords();
+        records.unshift(newRecord);
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(records));
+
+        this.currentPage = 1;
+        this.render();
+    },
+
+    getRecords() {
+        const data = localStorage.getItem(this.STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    },
+
+    deleteItem(id) {
+        let records = this.getRecords();
+        records = records.filter(item => item.id !== id);
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(records));
+        
+        const totalPages = Math.ceil(records.length / this.rowsPerPage);
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        if (this.currentPage < 1) this.currentPage = 1;
+
+        this.render();
+    },
+
+    clearAll() {
+        localStorage.removeItem(this.STORAGE_KEY);
+        this.currentPage = 1; 
+        this.render();
+    },
+    
+    changePage(page) {
+        this.currentPage = page;
+        this.render();
+    },
+
+    render() {
+        const tbody = document.getElementById('recordTableBody');
+        let paginationContainer = document.getElementById('pagination-controls');
+        
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        const records = this.getRecords();
+
+        if (records.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="record-empty" style="text-align:center;color:#888;opacity:0.6;padding:20px;">
+                        目前尚無觀測紀錄，計算後即自動留存數據。
+                    </td>
+                </tr>`;
+            if (paginationContainer) paginationContainer.innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(records.length / this.rowsPerPage);
+        if (this.currentPage > totalPages) this.currentPage = totalPages;
+        if (this.currentPage < 1) this.currentPage = 1;
+
+        const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+        const endIndex = startIndex + this.rowsPerPage;
+        const paginatedItems = records.slice(startIndex, endIndex);
+
+        tbody.innerHTML = paginatedItems.map(item => `
+            <tr>
+                <td style="color: #888; font-size: 13px;">${item.time}</td>
+                <td style="font-weight: bold; color: #ff9800;">${item.code}</td>
+                <td>
+                    <span class="record-badge ${item.type === '通過速度' ? 'badge-speed' : 'badge-accel'}">
+                        ${item.type}
+                    </span>
+                </td>
+                <td class="record-data-cell">
+                    ${item.result}
+                </td>
+                <td>
+                    <button type="button" class="btn-delete" onclick="RecordManager.deleteItem(${item.id})">
+                        刪除
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        if (!paginationContainer) {
+            paginationContainer = document.createElement('div');
+            paginationContainer.id = 'pagination-controls';
+            paginationContainer.className = 'pagination-container';
+            const wrapper = document.querySelector('.record-table-wrapper') || tbody.closest('table');
+            if (wrapper) {
+                wrapper.parentNode.insertBefore(paginationContainer, wrapper.nextSibling);
+            }
+        }
+
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = '';
+            return;
+        }
+
+        paginationContainer.innerHTML = `
+            <button type="button" class="btn-page" ${this.currentPage === 1 ? 'disabled' : ''} onclick="RecordManager.changePage(${this.currentPage - 1})">◀</button>
+            <span class="page-info">${this.currentPage} / ${totalPages}</span>
+            <button type="button" class="btn-page" ${this.currentPage === totalPages ? 'disabled' : ''} onclick="RecordManager.changePage(${this.currentPage + 1})">▶</button>
+        `;
+    }
+};
+
+// 初始化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => RecordManager.init());
+} else {
+    RecordManager.init();
+}
+</script>
+</body>
+</html>
