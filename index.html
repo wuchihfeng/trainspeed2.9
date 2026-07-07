@@ -819,10 +819,11 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ==========================================================================
-// --- 7. 歷史觀測紀錄管理模組 (RecordManager) ---
+// --- 7. 歷史觀測紀錄管理模組 (RecordManager - v4.1.0 移植完全體) ---
 // ==========================================================================
 const RecordManager = {
-    STORAGE_KEY: 'railway_calculator_records',
+    // 💡 沿用 v4 的金鑰名稱，確保資料可以跨版本讀取且不打架
+    STORAGE_KEY: 'train_speed_records_v4',
     currentPage: 1,     
     rowsPerPage: 5,     
 
@@ -831,6 +832,7 @@ const RecordManager = {
     },
 
     saveCurrent(forcedType) {
+        // 💡 對接 v2.9.0 的輸入框 ID：trainCode
         const elCode = document.getElementById('trainCode');
         const trainCode = (elCode && elCode.value.trim()) ? elCode.value.trim().toUpperCase() : "未指定車型";
         
@@ -845,35 +847,45 @@ const RecordManager = {
 
         if (forcedType === 'accel') {
             type = "起動加速度";
-            resultValue = accelText;
+            // 💡 補齊單位格式，讓保存的資料更美觀工整
+            resultValue = (accelText.includes("m/s²") || accelText === "--") ? accelText : `${accelText} m/s²`;
         } else if (forcedType === 'speed') {
             type = "通過速度";
-            resultValue = speedText;
+            resultValue = (speedText.includes("km/h") || speedText === "--") ? speedText : `${speedText} km/h`;
         } else {
-            return;
+            return; // 拒絕非授權調用（如秒數小算盤誤觸發）
         }
 
-        if (resultValue.includes("--")) return;
+        // 擋住未計算的空白鬼影數據
+        if (resultValue.includes("--") || resultValue.startsWith("0.00")) return;
 
         const newRecord = {
-            id: Date.now(),
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            id: Date.now() + Math.random(),
+            // 💡 改用月/日 24小時制，在手機寬度有限的表格中比較不容易折行
+            time: (() => {
+                const now = new Date();
+                return `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            })(),
             code: trainCode,
             type: type,
             result: resultValue
         };
 
         const records = this.getRecords();
-        records.unshift(newRecord);
+        records.unshift(newRecord); // 新紀錄插到最前面
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(records));
 
-        this.currentPage = 1;
+        this.currentPage = 1; // 儲存新紀錄時，強制跳回第一頁查看
         this.render();
     },
 
     getRecords() {
-        const data = localStorage.getItem(this.STORAGE_KEY);
-        return data ? JSON.parse(data) : [];
+        try {
+            const data = localStorage.getItem(this.STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch(e) {
+            return [];
+        }
     },
 
     deleteItem(id) {
@@ -881,7 +893,8 @@ const RecordManager = {
         records = records.filter(item => item.id !== id);
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(records));
         
-        const totalPages = Math.ceil(records.length / this.rowsPerPage);
+        // 安全退頁防呆：如果刪除該頁最後一條資料，自動退回前一頁
+        const totalPages = Math.ceil(records.length / this.rowsPerPage) || 1;
         if (this.currentPage > totalPages) this.currentPage = totalPages;
         if (this.currentPage < 1) this.currentPage = 1;
 
@@ -911,7 +924,7 @@ const RecordManager = {
         if (records.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="record-empty" style="text-align:center;color:#888;opacity:0.6;padding:20px;">
+                    <td colspan="5" class="record-empty" style="text-align:center;color:#666;padding:20px;">
                         目前尚無觀測紀錄，計算後即自動留存數據。
                     </td>
                 </tr>`;
@@ -919,7 +932,7 @@ const RecordManager = {
             return;
         }
 
-        const totalPages = Math.ceil(records.length / this.rowsPerPage);
+        const totalPages = Math.ceil(records.length / this.rowsPerPage) || 1;
         if (this.currentPage > totalPages) this.currentPage = totalPages;
         if (this.currentPage < 1) this.currentPage = 1;
 
@@ -927,55 +940,60 @@ const RecordManager = {
         const endIndex = startIndex + this.rowsPerPage;
         const paginatedItems = records.slice(startIndex, endIndex);
 
+        // 💡 安全防護過濾
+        const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        // 渲染資料列
         tbody.innerHTML = paginatedItems.map(item => `
             <tr>
-                <td style="color: #888; font-size: 13px;">${item.time}</td>
-                <td style="font-weight: bold; color: #ff9800;">${item.code}</td>
+                <td style="color: #aaa; font-size: 13px;">${esc(item.time)}</td>
+                <td style="font-weight: bold; color: var(--accent-color, #ff9800);">${esc(item.code)}</td>
                 <td>
-                    <span class="record-badge ${item.type === '通過速度' ? 'badge-speed' : 'badge-accel'}">
-                        ${item.type}
+                    <span class="badge ${item.type === '起動加速度' ? 'badge-accel' : 'badge-speed'}">
+                        ${esc(item.type)}
                     </span>
                 </td>
-                <td class="record-data-cell">
-                    ${item.result}
+                <td style="font-family: 'Noto Sans Mono', monospace; font-weight: bold;">
+                    ${esc(item.result)}
                 </td>
                 <td>
-                    <button type="button" class="btn-delete" onclick="RecordManager.deleteItem(${item.id})">
+                    <button type="button" class="btn-delete" onclick="RecordManager.deleteItem(${item.id})" style="background:#cc0000; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">
                         刪除
                     </button>
                 </td>
             </tr>
         `).join('');
 
+        // 動態生成分頁控制列
         if (!paginationContainer) {
             paginationContainer = document.createElement('div');
             paginationContainer.id = 'pagination-controls';
             paginationContainer.className = 'pagination-container';
+            // 💡 精準抓取外殼
             const wrapper = document.querySelector('.record-table-wrapper') || tbody.closest('table');
             if (wrapper) {
                 wrapper.parentNode.insertBefore(paginationContainer, wrapper.nextSibling);
             }
         }
 
+        // 資料只有一頁時，隱藏分頁按鈕
         if (totalPages <= 1) {
             paginationContainer.innerHTML = '';
             return;
         }
 
+        // 渲染分頁 UI
         paginationContainer.innerHTML = `
             <button type="button" class="btn-page" ${this.currentPage === 1 ? 'disabled' : ''} onclick="RecordManager.changePage(${this.currentPage - 1})">◀</button>
-            <span class="page-info">${this.currentPage} / ${totalPages}</span>
+            <span class="page-info" style="margin:0 10px; font-weight:bold;">${this.currentPage} / ${totalPages}</span>
             <button type="button" class="btn-page" ${this.currentPage === totalPages ? 'disabled' : ''} onclick="RecordManager.changePage(${this.currentPage + 1})">▶</button>
         `;
     }
 };
 
-// 初始化
+// 確保 DOM 載入完畢後安全啟動
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => RecordManager.init());
 } else {
     RecordManager.init();
 }
-</script>
-</body>
-</html>
